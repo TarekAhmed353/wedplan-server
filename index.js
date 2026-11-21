@@ -1,14 +1,30 @@
+import cors from "cors";
 import express from "express";
 import { connectDB } from "./src/db.js";
+import { errorHandler, notFound } from "./src/middleware/error-handlers.js";
 
 const app = express();
 const port = process.env.PORT || 8000;
+const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(
+  /\/$/,
+  "",
+);
 
+app.use(
+  cors({
+    origin: clientUrl,
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({ message: "WedPlan server is running" });
 });
+
+app.use(notFound);
+app.use(errorHandler);
 
 if (!process.env.VERCEL) {
   try {
