@@ -1,4 +1,5 @@
 import express from "express";
+import { connectDB } from "./src/db.js";
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -10,6 +11,14 @@ app.get("/", (req, res) => {
 });
 
 if (!process.env.VERCEL) {
+  try {
+    const dbName = await connectDB();
+    console.log(`Connected to MongoDB database "${dbName}"`);
+  } catch (error) {
+    console.error(`Could not connect to MongoDB: ${error.message}`);
+    process.exit(1);
+  }
+
   app.listen(port, (error) => {
     if (error) {
       console.error(`Could not start server on port ${port}: ${error.code}`);
