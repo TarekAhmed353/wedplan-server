@@ -1,14 +1,12 @@
 import cors from "cors";
 import express from "express";
+import { clientUrl } from "./src/config.js";
 import { connectDB } from "./src/db.js";
 import { errorHandler, notFound } from "./src/middleware/error-handlers.js";
+import meRouter from "./src/routes/me.js";
 
 const app = express();
 const port = process.env.PORT || 8000;
-const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(
-  /\/$/,
-  "",
-);
 
 app.use(
   cors({
@@ -22,6 +20,8 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.json({ message: "WedPlan server is running" });
 });
+
+app.use("/api/me", meRouter);
 
 app.use(notFound);
 app.use(errorHandler);
