@@ -1,0 +1,15 @@
+{
+  "name": "wedplan-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Express API for WedPlan, a wedding planning platform",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=.env index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0"
+  }
+}
