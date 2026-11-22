@@ -8,6 +8,8 @@ import bookingsRouter from "./src/routes/bookings.js";
 import customerRouter from "./src/routes/customer.js";
 import meRouter from "./src/routes/me.js";
 import servicesRouter from "./src/routes/services.js";
+import { stripeWebhook } from "./src/routes/stripe-webhook.js";
+import stripeRouter from "./src/routes/stripe.js";
 import vendorRouter from "./src/routes/vendor.js";
 
 const app = express();
@@ -20,6 +22,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
+app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), stripeWebhook);
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -32,6 +35,7 @@ app.use("/api/services", servicesRouter);
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/customer", customerRouter);
 app.use("/api/vendor", vendorRouter);
+app.use("/api/stripe", stripeRouter);
 
 app.use(notFound);
 app.use(errorHandler);
