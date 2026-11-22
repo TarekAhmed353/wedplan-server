@@ -4,6 +4,7 @@ import { clientUrl } from "./src/config.js";
 import { connectDB } from "./src/db.js";
 import { errorHandler, notFound } from "./src/middleware/error-handlers.js";
 import adminRouter from "./src/routes/admin.js";
+import bookingsRouter from "./src/routes/bookings.js";
 import meRouter from "./src/routes/me.js";
 import servicesRouter from "./src/routes/services.js";
 import vendorRouter from "./src/routes/vendor.js";
@@ -27,6 +28,7 @@ app.get("/", (req, res) => {
 app.use("/api/me", meRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/services", servicesRouter);
+app.use("/api/bookings", bookingsRouter);
 app.use("/api/vendor", vendorRouter);
 
 app.use(notFound);
