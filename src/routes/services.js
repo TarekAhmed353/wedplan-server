@@ -3,7 +3,13 @@ import { ObjectId } from "mongodb";
 import { SERVICE_CATEGORIES } from "../constants.js";
 import { collections } from "../db.js";
 import { toObjectId } from "../lib/ids.js";
-import { getPlanSummary, hasRoomForOneMore, isPremium } from "../lib/plan.js";
+import { getPlanSummary, hasRoomForOneMore } from "../lib/plan.js";
+import {
+  findBookableService,
+  publicMatch,
+  toPublicVendor,
+  vendorLookup,
+} from "../lib/public-services.js";
 import { escapeRegex } from "../lib/text.js";
 import {
   checkNotBlocked,
@@ -50,43 +56,6 @@ const SORTS = {
   "price-asc": { price: 1, _id: 1 },
   "price-desc": { price: -1, _id: -1 },
 };
-
-const publicMatch = { status: "approved", isAvailable: true };
-
-const vendorLookup = [
-  {
-    $lookup: {
-      from: "user",
-      localField: "vendorId",
-      foreignField: "_id",
-      as: "vendor",
-      pipeline: [
-        {
-          $project: {
-            name: 1,
-            businessName: 1,
-            image: 1,
-            isBlocked: 1,
-            subscriptionPlan: 1,
-            subscriptionExpiresAt: 1,
-          },
-        },
-      ],
-    },
-  },
-  { $set: { vendor: { $first: "$vendor" } } },
-  { $match: { vendor: { $ne: null }, "vendor.isBlocked": { $ne: true } } },
-];
-
-export function toPublicVendor(vendor) {
-  return {
-    _id: vendor._id,
-    name: vendor.name,
-    businessName: vendor.businessName ?? null,
-    image: vendor.image ?? null,
-    isPremium: isPremium(vendor),
-  };
-}
 
 function searchFilter(search) {
   const words = search.split(/\s+/).filter(Boolean).slice(0, 8);
@@ -177,6 +146,19 @@ router.get("/locations", async (req, res) => {
     .toArray();
 
   res.json({ locations: rows.map((row) => row.location) });
+});
+
+router.get("/:id", verifyToken, checkNotBlocked, async (req, res) => {
+  const id = toObjectId(req.params.id);
+  const service = id ? await findBookableService(id) : null;
+
+  if (!service) {
+    return res.status(404).json({
+      message: "This service does not exist or is not available right now",
+    });
+  }
+
+  res.json({ service: { ...service, vendor: toPublicVendor(service.vendor) } });
 });
 
 router.post("/", ...vendorOnly, async (req, res) => {
