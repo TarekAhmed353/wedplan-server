@@ -22,6 +22,20 @@ export function activeServiceFilter(vendorId) {
   };
 }
 
+export async function hasRoomForOneMore(vendor, excludeId) {
+  if (isPremium(vendor)) {
+    return true;
+  }
+
+  const filter = activeServiceFilter(vendor.id ?? vendor._id.toString());
+
+  if (excludeId) {
+    filter._id = { $ne: excludeId };
+  }
+
+  return (await collections.services.countDocuments(filter)) < FREE_SERVICE_LIMIT;
+}
+
 export async function getPlanSummary(user) {
   const premium = isPremium(user);
   const activeServices = await collections.services.countDocuments(

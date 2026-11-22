@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { ObjectId } from "mongodb";
-import { FREE_SERVICE_LIMIT } from "../constants.js";
 import { collections } from "../db.js";
 import { toObjectId } from "../lib/ids.js";
-import { activeServiceFilter, getPlanSummary, isPremium } from "../lib/plan.js";
+import { getPlanSummary, hasRoomForOneMore } from "../lib/plan.js";
 import {
   checkNotBlocked,
   requireRoleChosen,
@@ -23,20 +22,6 @@ const limitReached = {
 
 function isActive(service) {
   return service.isAvailable === true && service.status !== "rejected";
-}
-
-async function hasRoomForOneMore(user, excludeId) {
-  if (isPremium(user)) {
-    return true;
-  }
-
-  const filter = activeServiceFilter(user.id);
-
-  if (excludeId) {
-    filter._id = { $ne: excludeId };
-  }
-
-  return (await collections.services.countDocuments(filter)) < FREE_SERVICE_LIMIT;
 }
 
 async function findOwnService(req, res) {
