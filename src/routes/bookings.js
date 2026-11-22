@@ -104,4 +104,43 @@ router.patch("/:id/cancel", ...customerOnly, async (req, res) => {
   });
 });
 
+const vendorOnly = [verifyToken, checkNotBlocked, requireRoleChosen, verifyRole("vendor")];
+
+router.patch("/:id/respond", ...vendorOnly, async (req, res) => {
+  const { status } = req.body ?? {};
+
+  if (status !== "accepted" && status !== "rejected") {
+    return res.status(400).json({ message: "Status must be accepted or rejected" });
+  }
+
+  const id = toObjectId(req.params.id);
+  const vendorId = new ObjectId(req.user.id);
+
+  if (!id) {
+    return res.status(404).json({ message: "Booking not found" });
+  }
+
+  const now = new Date();
+  const result = await collections.bookings.findOneAndUpdate(
+    { _id: id, vendorId, status: "pending" },
+    { $set: { status, respondedAt: now, updatedAt: now } },
+    { returnDocument: "after" },
+  );
+
+  if (result) {
+    return res.json({ booking: result });
+  }
+
+  const existing = await collections.bookings.findOne({ _id: id, vendorId });
+
+  if (!existing) {
+    return res.status(404).json({ message: "Booking not found" });
+  }
+
+  res.status(409).json({
+    message: `This booking is already ${existing.status} and cannot be changed`,
+    code: "BOOKING_NOT_PENDING",
+  });
+});
+
 export default router;

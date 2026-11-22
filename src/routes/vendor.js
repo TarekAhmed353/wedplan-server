@@ -1,6 +1,12 @@
 import { Router } from "express";
 import { ObjectId } from "mongodb";
 import { collections } from "../db.js";
+import {
+  BOOKING_STATUSES,
+  serviceSummaryLookup,
+  toStatusCounts,
+  userSummaryLookup,
+} from "../lib/booking-views.js";
 import { toObjectId } from "../lib/ids.js";
 import { getPlanSummary } from "../lib/plan.js";
 import {
@@ -41,6 +47,28 @@ router.get("/services/:id", async (req, res) => {
   }
 
   res.json({ service });
+});
+
+router.get("/bookings", async (req, res) => {
+  const vendorId = new ObjectId(req.user.id);
+  const status = BOOKING_STATUSES.includes(req.query.status) ? req.query.status : null;
+
+  const [bookings, statusRows] = await Promise.all([
+    collections.bookings
+      .aggregate([
+        { $match: status ? { vendorId, status } : { vendorId } },
+        { $sort: { createdAt: -1 } },
+        { $limit: 200 },
+        ...serviceSummaryLookup,
+        ...userSummaryLookup("customerId", "customer", true),
+      ])
+      .toArray(),
+    collections.bookings
+      .aggregate([{ $match: { vendorId } }, { $group: { _id: "$status", count: { $sum: 1 } } }])
+      .toArray(),
+  ]);
+
+  res.json({ bookings, counts: toStatusCounts(statusRows) });
 });
 
 export default router;
