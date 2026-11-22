@@ -6,6 +6,8 @@ import { hasRoomForOneMore } from "../lib/plan.js";
 import { checkNotBlocked, verifyRole } from "../middleware/auth-checks.js";
 import { escapeRegex } from "../lib/text.js";
 import { verifyToken } from "../middleware/verify-token.js";
+import adminTransactionsRouter from "./admin-transactions.js";
+import adminUsersRouter from "./admin-users.js";
 
 const router = Router();
 
@@ -13,6 +15,8 @@ const SERVICE_STATUSES = ["pending", "approved", "rejected"];
 const PAGE_SIZE = 10;
 
 router.use(verifyToken, checkNotBlocked, verifyRole("admin"));
+router.use("/users", adminUsersRouter);
+router.use("/transactions", adminTransactionsRouter);
 
 router.get("/stats", async (req, res) => {
   const [
