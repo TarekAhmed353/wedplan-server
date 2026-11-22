@@ -71,6 +71,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `STRIPE_WEBHOOK_SECRET` | Signing secret of your webhook endpoint |
 | `IMGBB_API_KEY` | Only needed for the demo data script |
 | `SEED_VENDOR_PASSWORD` | Only needed for the demo data script |
+| `SEED_API_URL` | Optional, for the demo data script. The API address to seed. Leave it empty to use the local API |
 
 ## Run the project locally
 
