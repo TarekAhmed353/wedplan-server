@@ -42,11 +42,19 @@ export async function getPlanSummary(user) {
     activeServiceFilter(user.id),
   );
 
+  const latestPaid = premium
+    ? await collections.transactions.findOne(
+        { vendorId: new ObjectId(user.id), status: "paid", stripeSubscriptionId: { $ne: null } },
+        { sort: { createdAt: -1 } },
+      )
+    : null;
+
   return {
     plan: premium ? "premium" : "free",
     activeServices,
     limit: premium ? null : FREE_SERVICE_LIMIT,
     canAddService: premium || activeServices < FREE_SERVICE_LIMIT,
     subscriptionExpiresAt: premium ? user.subscriptionExpiresAt : null,
+    cancelAtPeriodEnd: Boolean(latestPaid?.cancelAtPeriodEnd),
   };
 }
