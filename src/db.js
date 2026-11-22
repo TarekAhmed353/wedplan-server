@@ -7,7 +7,7 @@ if (!uri) {
 }
 
 const client = new MongoClient(uri);
-const db = client.db(process.env.DB_NAME || "wedplan");
+export const db = client.db(process.env.DB_NAME || "wedplan");
 
 export const collections = {
   users: db.collection("user"),
