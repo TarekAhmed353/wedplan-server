@@ -246,6 +246,19 @@ router.delete("/:id", ...vendorOnly, async (req, res) => {
   const service = await findOwnService(req, res);
   if (!service) return;
 
+  const activeBookings = await collections.bookings.countDocuments({
+    serviceId: service._id,
+    status: { $in: ["pending", "accepted"] },
+  });
+
+  if (activeBookings > 0) {
+    return res.status(409).json({
+      message:
+        "This service has pending or accepted bookings. Switch it off instead, or reply to the requests first",
+      code: "SERVICE_HAS_BOOKINGS",
+    });
+  }
+
   await collections.services.deleteOne({ _id: service._id });
 
   res.json({ message: "Service deleted", id: service._id });

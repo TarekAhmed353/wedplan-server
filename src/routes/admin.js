@@ -157,7 +157,13 @@ router.delete("/services/:id", async (req, res) => {
     return res.status(404).json({ message: "Service not found" });
   }
 
-  res.json({ message: "Service deleted", id });
+  const now = new Date();
+  const { modifiedCount } = await collections.bookings.updateMany(
+    { serviceId: id, status: "pending" },
+    { $set: { status: "rejected", respondedAt: now, updatedAt: now } },
+  );
+
+  res.json({ message: "Service deleted", id, rejectedBookings: modifiedCount });
 });
 
 export default router;
