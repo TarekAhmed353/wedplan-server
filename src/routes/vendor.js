@@ -1,4 +1,7 @@
 import { Router } from "express";
+import { ObjectId } from "mongodb";
+import { collections } from "../db.js";
+import { toObjectId } from "../lib/ids.js";
 import { getPlanSummary } from "../lib/plan.js";
 import {
   checkNotBlocked,
@@ -13,6 +16,31 @@ router.use(verifyToken, checkNotBlocked, requireRoleChosen, verifyRole("vendor")
 
 router.get("/plan", async (req, res) => {
   res.json(await getPlanSummary(req.user));
+});
+
+router.get("/services", async (req, res) => {
+  const services = await collections.services
+    .find({ vendorId: new ObjectId(req.user.id) })
+    .sort({ createdAt: -1 })
+    .toArray();
+
+  res.json({ services });
+});
+
+router.get("/services/:id", async (req, res) => {
+  const id = toObjectId(req.params.id);
+  const service = id
+    ? await collections.services.findOne({
+        _id: id,
+        vendorId: new ObjectId(req.user.id),
+      })
+    : null;
+
+  if (!service) {
+    return res.status(404).json({ message: "Service not found" });
+  }
+
+  res.json({ service });
 });
 
 export default router;
