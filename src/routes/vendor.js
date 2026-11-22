@@ -8,7 +8,7 @@ import {
   userSummaryLookup,
 } from "../lib/booking-views.js";
 import { toObjectId } from "../lib/ids.js";
-import { getPlanSummary } from "../lib/plan.js";
+import { activeServiceFilter, getPlanSummary } from "../lib/plan.js";
 import {
   checkNotBlocked,
   requireRoleChosen,
@@ -22,6 +22,28 @@ router.use(verifyToken, checkNotBlocked, requireRoleChosen, verifyRole("vendor")
 
 router.get("/plan", async (req, res) => {
   res.json(await getPlanSummary(req.user));
+});
+
+router.get("/stats", async (req, res) => {
+  const vendorId = new ObjectId(req.user.id);
+
+  const [totalServices, activeServices, pendingRequests, acceptedBookings, plan] = await Promise.all([
+    collections.services.countDocuments({ vendorId }),
+    collections.services.countDocuments(activeServiceFilter(req.user.id)),
+    collections.bookings.countDocuments({ vendorId, status: "pending" }),
+    collections.bookings.countDocuments({ vendorId, status: "accepted" }),
+    getPlanSummary(req.user),
+  ]);
+
+  res.json({
+    totalServices,
+    activeServices,
+    pendingRequests,
+    acceptedBookings,
+    plan: plan.plan,
+    limit: plan.limit,
+    subscriptionExpiresAt: plan.subscriptionExpiresAt,
+  });
 });
 
 router.get("/services", async (req, res) => {

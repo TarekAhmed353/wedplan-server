@@ -18,6 +18,22 @@ const router = Router();
 
 router.use(verifyToken, checkNotBlocked, requireRoleChosen, verifyRole("customer"));
 
+router.get("/stats", async (req, res) => {
+  const customerId = new ObjectId(req.user.id);
+  const rows = await collections.bookings
+    .aggregate([{ $match: { customerId } }, { $group: { _id: "$status", count: { $sum: 1 } } }])
+    .toArray();
+  const counts = toStatusCounts(rows);
+
+  res.json({
+    totalRequests: counts.all,
+    pending: counts.pending,
+    accepted: counts.accepted,
+    rejected: counts.rejected,
+    cancelled: counts.cancelled,
+  });
+});
+
 router.get("/bookings", async (req, res) => {
   const customerId = new ObjectId(req.user.id);
   const status = BOOKING_STATUSES.includes(req.query.status) ? req.query.status : null;
