@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { ObjectId } from "mongodb";
 import { collections } from "../db.js";
+import { toObjectId } from "../lib/ids.js";
 import { findBookableService } from "../lib/public-services.js";
 import {
   checkNotBlocked,
@@ -70,6 +71,37 @@ router.post("/", ...customerOnly, async (req, res) => {
   const { insertedId } = await collections.bookings.insertOne(booking);
 
   res.status(201).json({ booking: { ...booking, _id: insertedId } });
+});
+
+router.patch("/:id/cancel", ...customerOnly, async (req, res) => {
+  const id = toObjectId(req.params.id);
+  const customerId = new ObjectId(req.user.id);
+
+  if (!id) {
+    return res.status(404).json({ message: "Booking not found" });
+  }
+
+  const now = new Date();
+  const result = await collections.bookings.findOneAndUpdate(
+    { _id: id, customerId, status: "pending" },
+    { $set: { status: "cancelled", cancelledAt: now, updatedAt: now } },
+    { returnDocument: "after" },
+  );
+
+  if (result) {
+    return res.json({ booking: result });
+  }
+
+  const existing = await collections.bookings.findOne({ _id: id, customerId });
+
+  if (!existing) {
+    return res.status(404).json({ message: "Booking not found" });
+  }
+
+  res.status(409).json({
+    message: `This booking is already ${existing.status} and can no longer be cancelled`,
+    code: "BOOKING_NOT_PENDING",
+  });
 });
 
 export default router;
