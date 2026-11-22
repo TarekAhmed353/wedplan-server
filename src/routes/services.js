@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { ObjectId } from "mongodb";
+import { SERVICE_CATEGORIES } from "../constants.js";
 import { collections } from "../db.js";
 import { toObjectId } from "../lib/ids.js";
-import { getPlanSummary, hasRoomForOneMore } from "../lib/plan.js";
+import { getPlanSummary, hasRoomForOneMore, isPremium } from "../lib/plan.js";
+import { escapeRegex } from "../lib/text.js";
 import {
   checkNotBlocked,
   requireRoleChosen,
@@ -40,6 +42,142 @@ async function findOwnService(req, res) {
 
   return service;
 }
+
+const PUBLIC_PAGE_SIZE = 12;
+
+const SORTS = {
+  newest: { createdAt: -1, _id: -1 },
+  "price-asc": { price: 1, _id: 1 },
+  "price-desc": { price: -1, _id: -1 },
+};
+
+const publicMatch = { status: "approved", isAvailable: true };
+
+const vendorLookup = [
+  {
+    $lookup: {
+      from: "user",
+      localField: "vendorId",
+      foreignField: "_id",
+      as: "vendor",
+      pipeline: [
+        {
+          $project: {
+            name: 1,
+            businessName: 1,
+            image: 1,
+            isBlocked: 1,
+            subscriptionPlan: 1,
+            subscriptionExpiresAt: 1,
+          },
+        },
+      ],
+    },
+  },
+  { $set: { vendor: { $first: "$vendor" } } },
+  { $match: { vendor: { $ne: null }, "vendor.isBlocked": { $ne: true } } },
+];
+
+export function toPublicVendor(vendor) {
+  return {
+    _id: vendor._id,
+    name: vendor.name,
+    businessName: vendor.businessName ?? null,
+    image: vendor.image ?? null,
+    isPremium: isPremium(vendor),
+  };
+}
+
+function searchFilter(search) {
+  const words = search.split(/\s+/).filter(Boolean).slice(0, 8);
+
+  if (words.length === 0) {
+    return {};
+  }
+
+  return {
+    $and: words.map((word) => {
+      const pattern = { $regex: escapeRegex(word), $options: "i" };
+      return {
+        $or: [
+          { serviceName: pattern },
+          { description: pattern },
+          { category: pattern },
+          { location: pattern },
+        ],
+      };
+    }),
+  };
+}
+
+router.get("/", async (req, res) => {
+  const search = typeof req.query.search === "string" ? req.query.search.trim().slice(0, 100) : "";
+  const category = SERVICE_CATEGORIES.includes(req.query.category) ? req.query.category : null;
+  const location =
+    typeof req.query.location === "string" ? req.query.location.trim().slice(0, 100) : "";
+  const sort = SORTS[req.query.sort] ? req.query.sort : "newest";
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+
+  const match = { ...publicMatch, ...searchFilter(search) };
+
+  if (category) {
+    match.category = category;
+  }
+
+  if (location) {
+    match.location = { $regex: `^\\s*${escapeRegex(location)}\\s*$`, $options: "i" };
+  }
+
+  const [result] = await collections.services
+    .aggregate([
+      { $match: match },
+      ...vendorLookup,
+      { $sort: SORTS[sort] },
+      {
+        $facet: {
+          services: [
+            { $skip: (page - 1) * PUBLIC_PAGE_SIZE },
+            { $limit: PUBLIC_PAGE_SIZE },
+            { $project: { description: 0 } },
+          ],
+          total: [{ $count: "count" }],
+        },
+      },
+    ])
+    .toArray();
+
+  const total = result.total[0]?.count ?? 0;
+
+  res.json({
+    services: result.services.map((service) => ({
+      ...service,
+      vendor: toPublicVendor(service.vendor),
+    })),
+    total,
+    page,
+    pageSize: PUBLIC_PAGE_SIZE,
+    totalPages: Math.max(1, Math.ceil(total / PUBLIC_PAGE_SIZE)),
+    sort,
+  });
+});
+
+router.get("/locations", async (req, res) => {
+  const rows = await collections.services
+    .aggregate([
+      { $match: publicMatch },
+      ...vendorLookup,
+      {
+        $group: {
+          _id: { $toLower: { $trim: { input: "$location" } } },
+          location: { $first: { $trim: { input: "$location" } } },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ])
+    .toArray();
+
+  res.json({ locations: rows.map((row) => row.location) });
+});
 
 router.post("/", ...vendorOnly, async (req, res) => {
   const { errors, value } = validateService(req.body ?? {});

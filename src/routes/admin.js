@@ -4,16 +4,13 @@ import { collections } from "../db.js";
 import { toObjectId } from "../lib/ids.js";
 import { hasRoomForOneMore } from "../lib/plan.js";
 import { checkNotBlocked, verifyRole } from "../middleware/auth-checks.js";
+import { escapeRegex } from "../lib/text.js";
 import { verifyToken } from "../middleware/verify-token.js";
 
 const router = Router();
 
 const SERVICE_STATUSES = ["pending", "approved", "rejected"];
 const PAGE_SIZE = 10;
-
-function escapeRegex(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 router.use(verifyToken, checkNotBlocked, verifyRole("admin"));
 
