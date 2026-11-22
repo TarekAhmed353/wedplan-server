@@ -21,3 +21,7 @@ export async function connectDB() {
   await db.command({ ping: 1 });
   return db.databaseName;
 }
+
+export async function closeDB() {
+  await client.close();
+}
